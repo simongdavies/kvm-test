@@ -115,33 +115,18 @@ namespace kvmtest
                 switch (run.exit_reason)
                 {
                     case LinuxKVM.KVM_EXIT_HLT:
+                        Console.WriteLine("Halt");
                         return;
                     case LinuxKVM.KVM_EXIT_IO:
-                        // Save rip, call HandleOutb, then restore rip
-                        LinuxKVM.kvm_regs regs = new();
-                        ret = LinuxKVM.ioctl(vcpufd, LinuxKVM.KVM_GET_REGS, ref regs);
-                        if (-1 == ret)
-                        {
-                            Console.WriteLine("KVM_GET_REGS returned -1");
-                            return;
-                        }
-                        UInt64 ripOrig = regs.rip;
                         count++;
-                        HandleOutb(run.port, Marshal.ReadByte(pRun, (int)run.data_offset), count);
-
-                        // Restore rip
-                        ret = LinuxKVM.ioctl(vcpufd, LinuxKVM.KVM_GET_REGS, ref regs);
-                        if (-1 == ret)
+                        var data = Marshal.ReadByte(pRun, (int)run.data_offset);
+                        if (count < 3)
                         {
-                            Console.WriteLine("KVM_GET_REGS returned -1");
-                            return;
+                            Console.WriteLine($"Port = {run.port:X4}, Value = {data}");
                         }
-                        regs.rip = ripOrig;
-                        ret = LinuxKVM.ioctl(vcpufd, LinuxKVM.KVM_SET_REGS, ref regs);
-                        if (-1 == ret)
+                        else
                         {
-                            Console.WriteLine("KVM_SET_REGS returned -1");
-                            return;
+                            Console.WriteLine("Unexpected EXIT_IO");
                         }
                         break;
                     default:
@@ -149,19 +134,6 @@ namespace kvmtest
                         return;
                 }
             }
-        }
-
-        static void HandleOutb(UInt16 port, byte value, int count)
-        {
-            if (count < 3)
-            {
-                Console.WriteLine($"Port = {port:X4}, Value = {value}");
-            }
-            else
-            {
-                Console.WriteLine("Unexpected EXIT_IO");
-            }
-
         }
     }
 }
